@@ -7,14 +7,26 @@
 #include <ctime>
 #include <iomanip>
 #include <sstream>
+#include <locale>
 
 // For convenience
 namespace fs = std::filesystem;
+using n_type = uint_fast32_t;
+
+static std::string formatWithCommas(const n_type value)
+{
+    std::stringstream ss;
+    // Imbue the stream with the user’s default locale, 
+    // which often uses commas for thousands separators in en_US.
+    ss.imbue(std::locale(""));
+    ss << value;  // The locale should insert thousands separators
+    return ss.str();
+}
 
 /**
  * Get the current system local time broken into seconds.
  */
-static int getCurrentSecond()
+static n_type getCurrentSecond()
 {
     auto now     = std::chrono::system_clock::now();
     std::time_t t= std::chrono::system_clock::to_time_t(now);
@@ -90,12 +102,12 @@ int main()
     std::cout << "Type number then <enter>:  ";
 
     // 5) Get user input: number of cycles
-    int cycles = 1;
+    n_type cycles = 1u;
     std::cin >> cycles;
     if(!std::cin.good() || cycles < 1)
     {
         std::cerr << "Invalid input; defaulting to 1.\n";
-        cycles = 1;
+        cycles = 1u;
     }
 
     std::cout << "Running " << cycles << " test runs\n";
@@ -110,11 +122,11 @@ int main()
     }
 
     // For final summary
-    int sumOfIterations = 0;
+    n_type sumOfIterations = 0;
     auto cycleStartTime = std::chrono::system_clock::now();
 
     // 6) Loop over cycles
-    for(int cycle = 1; cycle <= cycles; ++cycle)
+    for(n_type cycle = 1u; cycle <= cycles; ++cycle)
     {
         std::cout << std::string(76, '*') << "\n";
         std::cout << "Running Cycle " 
@@ -135,11 +147,12 @@ int main()
         std::ostringstream buffer;
 
         // 7) Pause logic if current second % 8 == 0
-        int pauseMs = getCurrentSecond() * 100;
+        n_type pauseMs = getCurrentSecond() * 100u;
+
         while(true)
         {
             int currentSec = getCurrentSecond();
-            if(currentSec % 8 != 0) {
+            if(currentSec % 8u != 0u) {
                 break;
             }
             std::cout << "Pausing for " << pauseMs << "ms\n";
@@ -147,7 +160,7 @@ int main()
             std::this_thread::sleep_for(std::chrono::milliseconds(pauseMs));
 
             // Recalc pauseMs after each sleep
-            pauseMs = getCurrentSecond() * 100;
+            pauseMs = getCurrentSecond() * 100u;
         }
 
         // 8) Print "Ready to go ..."
@@ -160,25 +173,24 @@ int main()
         std::string startStr = dateTimeToString(startTp);
         int startSecond = getCurrentSecond();
 
-        int iterations = 0;
-        int i = 0;
-        int currentSecond = startSecond;
+        n_type iterations = 0u;
+        n_type i = 0u;
+        n_type currentSecond = startSecond;
         
         // Loop while currentSecond == startSecond
         while(currentSecond == startSecond)
         {
-            iterations = i + 1;  // Matches "Iterations = 1 + i" from C#
+            iterations = i + 1u;  // Matches "Iterations = 1 + i" from C#
             ++i;
 
             // If i is multiple of 100K, update currentSecond, log progress
-            if((i % 100000) == 0)
+            if((i % 100000u) == 0u)
             {
                 currentSecond = getCurrentSecond();
                 auto progressTp = std::chrono::system_clock::now();
                 std::string progTimeStr = dateTimeToString(progressTp);
-                std::cout << "Cycle " << cycle << " of " << cycles 
-                          << " Iteration " << i << " " << progTimeStr << "\n";
-                buffer << "Iteration " << i << " " << progTimeStr << "\n";
+                buffer << "Cycle " << formatWithCommas(cycle) << " of " << formatWithCommas(cycles) 
+                          << " Iteration " << formatWithCommas(i) << " " << progTimeStr << "\n";
             }
             // Re-check second in case it changes mid-iteration
             currentSecond = getCurrentSecond();
@@ -191,11 +203,7 @@ int main()
         std::string endStr = dateTimeToString(endTp);
 
         // 10) Print iteration results to console
-        std::cout << "Iterations " << iterations
-                  << " Start " << startStr
-                  << " ... End " << endStr << "\n";
-        
-        buffer << "Iterations " << iterations
+        buffer << "Iterations " << formatWithCommas(iterations)
                << " Start " << startStr
                << " ... End " << endStr << "\n";
 
@@ -209,6 +217,8 @@ int main()
                 ofs << buffer.str();
             }
         }
+
+	std::cout << buffer.str();
 
         // Append info to iteration log
         {
@@ -237,11 +247,11 @@ int main()
     long long seconds = rem / 1000LL;
     long long ms      = rem % 1000LL;
 
-    std::cout << "******\tSum: " << sumOfIterations 
-              << " operations across " << cycles << " cycles *********\n\n";
+    std::cout << "******\tSum: " << formatWithCommas(sumOfIterations) 
+              << " operations across " << formatWithCommas(cycles) << " cycles *********\n\n";
 
-    int avgOpsPerSec = (cycles > 0) ? (sumOfIterations / cycles) : 0;
-    std::cout << "Average: " << avgOpsPerSec 
+    n_type avgOpsPerSec = (cycles > 0) ? (sumOfIterations / cycles) : 0;
+    std::cout << "Average: " << formatWithCommas(avgOpsPerSec) 
               << " operations per second **********\n\n";
 
     auto cycleStartStr = dateTimeToString(cycleStartTime);
